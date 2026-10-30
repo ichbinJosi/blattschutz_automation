@@ -7,53 +7,17 @@ from tkinter import filedialog, messagebox
 
 from add_blattschutz import make_non_yellow_cells_readonly
 
-# ---------------------------------------------------------
-# High-DPI / Schärfe-Fix für Windows
-# ---------------------------------------------------------
+# High-DPI Fix für Windows
 try:
-    ctypes.windll.shcore.SetProcessDpiAwareness(2)  # Process_Per_Monitor_DPI_Aware
+    ctypes.windll.shcore.SetProcessDpiAwareness(2)
 except Exception:
     try:
         ctypes.windll.user32.SetProcessDPIAware()
     except Exception:
         pass
 
-# App-Theme
 ctk.set_appearance_mode("Light")
 ctk.set_default_color_theme("blue")
-
-
-class EyeCanvas(ctk.CTkCanvas):
-    """Zeichnet ein gestochen scharfes, minimalistisches Augensymbol."""
-    def __init__(self, parent, size=20, color="#374151", **kwargs):
-        super().__init__(
-            parent,
-            width=size,
-            height=size,
-            bg=parent.cget("fg_color") if hasattr(parent, "cget") else "#F3F4F6",
-            highlightthickness=0,
-            bd=0,
-            **kwargs
-        )
-        self.size = size
-        self.color = color
-        self.draw_eye(closed=False)
-
-    def draw_eye(self, closed=False):
-        self.delete("all")
-        w, h = self.size, self.size
-        pad = 2
-
-        if not closed:
-            # Offenes Auge (Bogen oben & unten + Iris)
-            self.create_arc(pad, pad-2, w-pad, h-pad+2, start=25, extent=130, style="arc", outline=self.color, width=2)
-            self.create_arc(pad, pad-2, w-pad, h-pad+2, start=205, extent=130, style="arc", outline=self.color, width=2)
-            self.create_oval(w/2-3, h/2-3, w/2+3, h/2+3, fill=self.color, outline="")
-        else:
-            # Geschlossenes Auge (Bogen unten + Striche für Wimpern)
-            self.create_arc(pad, pad-4, w-pad, h-pad, start=200, extent=140, style="arc", outline=self.color, width=2)
-            # Diagonaler Durchstreich-Strich
-            self.create_line(pad+2, pad+2, w-pad-2, h-pad-2, fill=self.color, width=2)
 
 
 class App(TkinterDnD.Tk):
@@ -61,9 +25,12 @@ class App(TkinterDnD.Tk):
         super().__init__()
 
         self.title("Excel Schreibschutz-Tool")
-        self.geometry("540x620")
-        self.minsize(460, 560)  # Mindestgröße festlegen
-        self.resizable(True, True)  # Fenstergröße wieder anpassbar machen
+        self.geometry("560x720")
+        self.minsize(500, 680)
+        self.resizable(True, True)
+
+        # Hintergrundfarbe für TkinterDnD.Tk
+        self.configure(bg="#F3F4F6")
 
         self._create_variables()
         self._create_widgets()
@@ -76,50 +43,50 @@ class App(TkinterDnD.Tk):
         self.show_password = False
 
     def _create_widgets(self):
-        # Haupt-Container dehnt sich bei Fenstervergrößerung mit aus
-        self.main_container = ctk.CTkFrame(self, fg_color="#F8F9FA")
-        self.main_container.pack(fill="both", expand=True, padx=25, pady=25)
+        # Haupt-Container
+        self.main_container = ctk.CTkFrame(self, fg_color="transparent")
+        self.main_container.pack(fill="both", expand=True, padx=30, pady=30)
 
         # 1. Header
         self.header_frame = ctk.CTkFrame(self.main_container, fg_color="transparent")
-        self.header_frame.pack(fill="x", pady=(0, 15))
+        self.header_frame.pack(fill="x", pady=(0, 20))
 
         self.lbl_title = ctk.CTkLabel(
             self.header_frame,
             text="Excel Schreibschutz",
-            font=ctk.CTkFont(size=22, weight="bold"),
-            text_color="#1F2937",
+            font=ctk.CTkFont(size=24, weight="bold"),
+            text_color="#111827",
         )
         self.lbl_title.pack(anchor="w")
 
         self.lbl_subtitle = ctk.CTkLabel(
             self.header_frame,
             text="Schützt automatisiert alle Zellen ohne gelbe Markierung",
-            font=ctk.CTkFont(size=12),
+            font=ctk.CTkFont(size=13),
             text_color="#6B7280",
         )
-        self.lbl_subtitle.pack(anchor="w", pady=(2, 0))
+        self.lbl_subtitle.pack(anchor="w", pady=(3, 0))
 
         # 2. Upload / Drop-Card
         self.drop_card = ctk.CTkFrame(
             self.main_container,
-            height=130,
+            height=135,
             corner_radius=12,
             border_width=1,
             border_color="#D1D5DB",
             fg_color="#FFFFFF",
             cursor="hand2",
         )
-        self.drop_card.pack(fill="x", pady=(0, 15))
+        self.drop_card.pack(fill="x", pady=(0, 20))
         self.drop_card.pack_propagate(False)
 
         self.drop_icon = ctk.CTkLabel(
             self.drop_card,
             text="📄",
-            font=ctk.CTkFont(size=30),
+            font=ctk.CTkFont(size=32),
             cursor="hand2",
         )
-        self.drop_icon.pack(pady=(20, 2))
+        self.drop_icon.pack(pady=(20, 4))
 
         self.drop_label = ctk.CTkLabel(
             self.drop_card,
@@ -147,24 +114,27 @@ class App(TkinterDnD.Tk):
             border_color="#E5E7EB",
             fg_color="#FFFFFF",
         )
-        self.form_card.pack(fill="x", pady=(0, 15), ipadx=15, ipady=15)
+        self.form_card.pack(fill="x", pady=(0, 20))
+
+        self.form_inner = ctk.CTkFrame(self.form_card, fg_color="transparent")
+        self.form_inner.pack(fill="x", padx=20, pady=20)
 
         # Feld 1: Dateiname
         self.lbl_name_tag = ctk.CTkLabel(
-            self.form_card,
+            self.form_inner,
             text="Name des neuen Dokuments",
             font=ctk.CTkFont(size=12, weight="bold"),
-            text_color="#4B5563",
+            text_color="#374151",
         )
-        self.lbl_name_tag.pack(anchor="w", pady=(0, 4))
+        self.lbl_name_tag.pack(anchor="w", pady=(0, 6))
 
-        self.name_box = ctk.CTkFrame(self.form_card, fg_color="transparent")
-        self.name_box.pack(fill="x", pady=(0, 14))
+        self.name_box = ctk.CTkFrame(self.form_inner, fg_color="transparent")
+        self.name_box.pack(fill="x", pady=(0, 16))
 
         self.name_entry = ctk.CTkEntry(
             self.name_box,
             placeholder_text="z. B. Muster_geschuetzt",
-            height=38,
+            height=40,
             corner_radius=8,
             fg_color="#F9FAFB",
             text_color="#111827",
@@ -179,27 +149,27 @@ class App(TkinterDnD.Tk):
             text=".xlsx",
             font=ctk.CTkFont(size=13, weight="bold"),
             text_color="#6B7280",
-            width=40,
+            width=45,
         )
-        self.ext_badge.pack(side="right", padx=(8, 0))
+        self.ext_badge.pack(side="right", padx=(10, 0))
 
         # Feld 2: Passwort
         self.lbl_pass_tag = ctk.CTkLabel(
-            self.form_card,
+            self.form_inner,
             text="Passwort für Blattschutz",
             font=ctk.CTkFont(size=12, weight="bold"),
-            text_color="#4B5563",
+            text_color="#374151",
         )
-        self.lbl_pass_tag.pack(anchor="w", pady=(0, 4))
+        self.lbl_pass_tag.pack(anchor="w", pady=(0, 6))
 
-        self.pass_box = ctk.CTkFrame(self.form_card, fg_color="transparent")
+        self.pass_box = ctk.CTkFrame(self.form_inner, fg_color="transparent")
         self.pass_box.pack(fill="x")
 
         self.pass_entry = ctk.CTkEntry(
             self.pass_box,
             placeholder_text="Passwort eingeben",
             show="*",
-            height=38,
+            height=40,
             corner_radius=8,
             fg_color="#F9FAFB",
             text_color="#111827",
@@ -209,29 +179,28 @@ class App(TkinterDnD.Tk):
         )
         self.pass_entry.pack(side="left", fill="x", expand=True)
 
-        # Eleganter Button mit gezeichnetem Vektor-Augen-Icon
         self.btn_show_pass = ctk.CTkButton(
             self.pass_box,
-            text="",
-            width=42,
-            height=38,
+            text="👁",
+            font=ctk.CTkFont(size=16),
+            width=45,
+            height=40,
             corner_radius=8,
             fg_color="#F3F4F6",
             hover_color="#E5E7EB",
+            text_color="#374151",
             command=self._toggle_password,
         )
-        self.btn_show_pass.pack(side="right", padx=(8, 0))
+        self.btn_show_pass.pack(side="right", padx=(10, 0))
 
-        # Vektor-Auge platzieren
-        self.eye_icon = EyeCanvas(self.btn_show_pass, size=20, color="#374151")
-        self.eye_icon.place(relx=0.5, rely=0.5, anchor="center")
-        self.eye_icon.bind("<Button-1>", lambda e: self._toggle_password())
-
-        # Progress Bar
+        # Progress Bar wird hier definiert, aber noch NICHT gepackt (erst bei Aktivität sichtbar)
         self.progress = ctk.CTkProgressBar(
-            self.main_container, height=4, corner_radius=2, progress_color="#2563EB"
+            self.main_container,
+            height=5,
+            corner_radius=3,
+            progress_color="#2563EB",
+            fg_color="#E5E7EB",
         )
-        self.progress.pack(fill="x", pady=(0, 12))
         self.progress.set(0)
 
         # Action Button
@@ -239,7 +208,7 @@ class App(TkinterDnD.Tk):
             self.main_container,
             text="Schreibschutz anwenden",
             font=ctk.CTkFont(size=14, weight="bold"),
-            height=44,
+            height=46,
             corner_radius=8,
             fg_color="#2563EB",
             hover_color="#1D4ED8",
@@ -255,21 +224,21 @@ class App(TkinterDnD.Tk):
             font=ctk.CTkFont(size=12),
             wraplength=450,
         )
-        self.status_label.pack(pady=(10, 0))
+        self.status_label.pack(pady=(12, 0))
 
         # 4. Success Overlay Screen
         self.success_card = ctk.CTkFrame(
             self.main_container,
             corner_radius=12,
-            border_width=1,
+            border_width=1.5,
             border_color="#10B981",
             fg_color="#FFFFFF",
         )
 
         self.succ_icon = ctk.CTkLabel(
-            self.success_card, text="✅", font=ctk.CTkFont(size=36)
+            self.success_card, text="✅", font=ctk.CTkFont(size=40)
         )
-        self.succ_icon.pack(pady=(20, 5))
+        self.succ_icon.pack(pady=(24, 6))
 
         self.succ_title = ctk.CTkLabel(
             self.success_card,
@@ -282,17 +251,17 @@ class App(TkinterDnD.Tk):
         self.succ_path_label = ctk.CTkLabel(
             self.success_card,
             text="",
-            font=ctk.CTkFont(size=11),
+            font=ctk.CTkFont(size=12),
             text_color="#6B7280",
             wraplength=420,
         )
-        self.succ_path_label.pack(pady=(8, 15))
+        self.succ_path_label.pack(pady=(10, 18))
 
         self.btn_open_folder = ctk.CTkButton(
             self.success_card,
             text="📁 Ordner öffnen",
             font=ctk.CTkFont(weight="bold"),
-            height=36,
+            height=38,
             fg_color="#F3F4F6",
             hover_color="#E5E7EB",
             text_color="#1F2937",
@@ -304,12 +273,12 @@ class App(TkinterDnD.Tk):
             self.success_card,
             text="Weitere Datei bearbeiten",
             font=ctk.CTkFont(weight="bold"),
-            height=38,
+            height=40,
             fg_color="#2563EB",
             hover_color="#1D4ED8",
             command=self._reset_form,
         )
-        self.btn_reset.pack(pady=(0, 20))
+        self.btn_reset.pack(pady=(0, 24))
 
     def _bind_events(self):
         targets = [self.drop_card, self.drop_label, self.drop_icon, self.drop_sublabel]
@@ -327,7 +296,7 @@ class App(TkinterDnD.Tk):
     def _toggle_password(self):
         self.show_password = not self.show_password
         self.pass_entry.configure(show="" if self.show_password else "*")
-        self.eye_icon.draw_eye(closed=self.show_password)
+        self.btn_show_pass.configure(text="🔒" if self.show_password else "👁")
 
     def _on_drag_enter(self, event):
         if not self.processing:
@@ -410,15 +379,15 @@ class App(TkinterDnD.Tk):
         self.pass_entry.delete(0, "end")
         self.show_password = False
         self.pass_entry.configure(show="*")
-        self.eye_icon.draw_eye(closed=False)
+        self.btn_show_pass.configure(text="👁")
 
         self.status_label.configure(text="")
+        self.progress.pack_forget()
         self.progress.set(0)
 
         self.success_card.pack_forget()
-        self.drop_card.pack(fill="x", pady=(0, 15))
-        self.form_card.pack(fill="x", pady=(0, 15), ipadx=15, ipady=15)
-        self.progress.pack(fill="x", pady=(0, 12))
+        self.drop_card.pack(fill="x", pady=(0, 20))
+        self.form_card.pack(fill="x", pady=(0, 20))
         self.btn_process.pack(fill="x")
         self._validate_inputs()
 
@@ -450,6 +419,9 @@ class App(TkinterDnD.Tk):
 
         self.processing = True
         self.btn_process.configure(state="disabled", text="Verarbeite Schreibschutz...")
+        
+        # Ladebalken einblenden & Fortschritt setzen
+        self.progress.pack(fill="x", pady=(0, 14), before=self.btn_process)
         self.progress.set(0.4)
         self.update()
 
@@ -468,9 +440,10 @@ class App(TkinterDnD.Tk):
             self.succ_path_label.configure(
                 text=f"Gespeichert unter:\n{self.output_path}"
             )
-            self.success_card.pack(fill="x", pady=10, ipadx=10)
+            self.success_card.pack(fill="x", pady=10)
 
         except Exception as e:
+            self.progress.pack_forget()
             self.progress.set(0)
             self.status_label.configure(
                 text=f"❌ Fehler: {str(e)}", text_color="#EF4444"
