@@ -4,6 +4,7 @@ import ctypes
 import customtkinter as ctk
 from tkinterdnd2 import TkinterDnD, DND_FILES
 from tkinter import filedialog, messagebox
+import sys
 
 from add_blattschutz import make_non_yellow_cells_readonly
 
@@ -19,17 +20,35 @@ except Exception:
 ctk.set_appearance_mode("Light")
 ctk.set_default_color_theme("blue")
 
+def get_resource_path(relative_path):
+    """Ermittelt den absoluten Pfad zur Ressource (funktioniert lokal und in PyInstaller .exe)."""
+    try:
+        # PyInstaller erstellt einen temporären Ordner _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
+
 
 class App(TkinterDnD.Tk):
     def __init__(self):
         super().__init__()
 
-        self.title("Excel Schreibschutz-Tool")
+        self.title("Excel-Schreibschutz")
         self.geometry("560x720")
         self.minsize(500, 680)
         self.resizable(True, True)
 
-        # Hintergrundfarbe für TkinterDnD.Tk
+        # --- Icon für das Fenster laden (Funktioniert auch in der .exe) ---
+        icon_path = get_resource_path("icon.ico")
+        if os.path.exists(icon_path):
+            try:
+                self.iconbitmap(icon_path)
+            except Exception:
+                # Fallback für manche Windows-Umgebungen
+                self.wm_iconbitmap(icon_path)
+
         self.configure(bg="#F3F4F6")
 
         self._create_variables()
